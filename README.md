@@ -1,0 +1,1 @@
+# wazuh-opensearch-alert-analytics
