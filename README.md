@@ -1,11 +1,13 @@
 # Wazuh Alert Analyzer
 
-A powerful Python CLI tool for analyzing Wazuh security alerts with dynamic time ranges, alert level classification, and comprehensive shift reporting. Integrates with OpenSearch backend for large-scale data retrieval and analysis.
+A Python CLI tool for analyzing Wazuh security alerts with dynamic time ranges, alert level classification, and comprehensive shift reporting. Integrates with OpenSearch backend for large-scale data retrieval and analysis.
 
 ## 🚀 Features
 
 ### Core Functionality
 - **Dynamic Time Range Input** - Flexible date and time configuration with timezone support
+- **Cross-Day Shift Support** - Separate start and end date inputs for night shifts spanning multiple days
+- **Smart Default Detection** - Automatic end date suggestion based on start time (next day for late shifts)
 - **Alert Level Classification** - Automatic categorization (Low, Medium, High, Critical)
 - **Top 5 Alert Analysis** - Most frequent alerts by description with "Others" category
 - **Comprehensive Reporting** - Detailed shift summaries with statistics and percentages
@@ -16,6 +18,8 @@ A powerful Python CLI tool for analyzing Wazuh security alerts with dynamic time
 - **OpenSearch Integration** - Direct connection to Wazuh's OpenSearch backend
 - **Scroll API Support** - Efficient retrieval of large datasets (50k+ alerts)
 - **SSL/TLS Support** - Secure HTTPS connections with certificate validation options
+- **Enhanced Time Validation** - Duration calculation, warnings, and user confirmation for invalid ranges
+- **Precision Time Format** - HH:MM:SS format for accurate time specification
 - **Error Handling** - Robust error handling and user-friendly messages
 - **Report Export** - Automatic report saving to timestamped files
 
@@ -64,12 +68,14 @@ python opensearch-simple-github.py
 
 ### Interactive Configuration
 The script will prompt for:
-1. **Analysis Date** - Target date for analysis (default: today)
-2. **Start Time** - Beginning of analysis period (format: HH:MM)
-3. **End Time** - End of analysis period (format: HH:MM)
-4. **Confirmation** - Review and confirm settings before execution
+1. **Start Date** - Date for analysis start (default: today)
+2. **Start Time** - Beginning of analysis period (format: HH:MM:SS)
+3. **End Date** - Date for analysis end (smart default: same day or next day for late shifts)
+4. **End Time** - End of analysis period (format: HH:MM:SS)
+5. **Duration Display** - Shows calculated duration and UTC conversion
+6. **Confirmation** - Review and confirm settings before execution
 
-### Example Session
+### Example Session - Regular Shift
 ```
 🛡️  Wazuh Alert Analyzer - OpenSearch Version
 ============================================================
@@ -77,17 +83,61 @@ The script will prompt for:
 👤 Using credentials: admin:***
 
 ANALYSIS TIME CONFIGURATION
-========================================
-Enter date (YYYY-MM-DD), default: [2025-08-24]: 2025-08-24
-START TIME CONFIGURATION
-Enter start time (HH:MM), default: [08:00]: 08:00
-END TIME CONFIGURATION  
-Enter end time (HH:MM), default: [17:00]: 17:00
+==================================================
+
+🕐 START DATE & TIME CONFIGURATION
+----------------------------------------
+Enter start date (YYYY-MM-DD), default: [2025-08-24]: 2025-08-24
+Start date set to: 2025-08-24
+Enter start time (format: HH:MM:SS)
+Example: 23:00:00 for 11 PM
+Start time [08:00:00]: 08:00:00
+
+🕕 END DATE & TIME CONFIGURATION
+----------------------------------------
+Enter end date (YYYY-MM-DD), default: [2025-08-24]: 2025-08-24
+End date set to: 2025-08-24
+Enter end time (format: HH:MM:SS)
+Example: 05:00:00 for 5 AM
+End time [17:00:00]: 17:00:00
 
 📋 CONFIGURATION SUMMARY:
-Date: 2025-08-24
-Time WIB (GMT+7): 08:00 - 17:00
-Time UTC: 2025-08-24T01:00:00Z - 2025-08-24T10:00:00Z
+==================================================
+Start: 2025-08-24 08:00:00 WIB
+End:   2025-08-24 17:00:00 WIB
+Duration: 9.0 hours
+UTC Range: 2025-08-24T01:00:00Z to 2025-08-24T10:00:00Z
+
+Continue with this configuration? (y/n) [y]: y
+```
+
+### Example Session - Night Shift (Cross-Day)
+```
+ANALYSIS TIME CONFIGURATION
+==================================================
+
+🕐 START DATE & TIME CONFIGURATION
+----------------------------------------
+Enter start date (YYYY-MM-DD), default: [2025-08-24]: 2025-08-23
+Start date set to: 2025-08-23
+Enter start time (format: HH:MM:SS)
+Example: 23:00:00 for 11 PM
+Start time [08:00:00]: 23:00:00
+
+🕕 END DATE & TIME CONFIGURATION
+----------------------------------------
+Enter end date (YYYY-MM-DD), default: [2025-08-24]: 2025-08-24
+End date set to: 2025-08-24
+Enter end time (format: HH:MM:SS)
+Example: 05:00:00 for 5 AM
+End time [17:00:00]: 05:00:00
+
+📋 CONFIGURATION SUMMARY:
+==================================================
+Start: 2025-08-23 23:00:00 WIB
+End:   2025-08-24 05:00:00 WIB
+Duration: 6.0 hours
+UTC Range: 2025-08-23T16:00:00Z to 2025-08-23T22:00:00Z
 
 Continue with this configuration? (y/n) [y]: y
 ```
@@ -144,7 +194,34 @@ The tool generates a detailed console report with:
 ### File Export
 Reports are automatically saved as:
 ```
-wazuh_shift_report_opensearch_YYYYMMDD_HHMMSS.txt
+wazuh_shift_report_opensearch_STARTDATE_TIMESTAMP.txt
+```
+
+## 🌙 Cross-Day Shift Support
+
+### Night Shift Scenarios
+The tool now fully supports shifts that span multiple days, perfect for:
+- **Night Security Operations** - 23:00 to 05:00 shifts
+- **24/7 SOC Coverage** - Overlapping shift analysis
+- **Weekend Operations** - Friday night to Saturday morning
+- **International Teams** - Cross-timezone shift coverage
+
+### Smart Features
+- **Automatic End Date Detection** - If start time is 20:00 or later, automatically suggests next day for end date
+- **Duration Calculation** - Real-time calculation and display of shift duration
+- **Cross-Day Validation** - Intelligent validation for time ranges spanning multiple days
+- **UTC Conversion Accuracy** - Precise timezone handling for cross-day periods
+
+### Use Cases
+```bash
+# Night Shift Example
+Start: 2025-08-23 23:00:00 WIB → End: 2025-08-24 07:00:00 WIB (8 hours)
+
+# Late Evening Shift
+Start: 2025-08-24 22:00:00 WIB → End: 2025-08-25 02:00:00 WIB (4 hours)
+
+# Regular Day Shift  
+Start: 2025-08-24 08:00:00 WIB → End: 2025-08-24 17:00:00 WIB (9 hours)
 ```
 
 ## 🔧 Alert Classification
@@ -181,6 +258,28 @@ The tool automatically classifies alerts based on Wazuh rule levels:
 ```
 **Possible Causes:**
 - Time range has no alerts
+- Incorrect timezone conversion for cross-day shifts
+- Index pattern mismatch
+- Network connectivity issues
+
+#### Cross-Day Time Validation
+```
+⚠️ Warning: End time is not greater than start time!
+```
+**When this happens:**
+- Review your date and time inputs
+- Ensure end date is after start date for cross-day shifts
+- Check if you meant to span multiple days
+- Use the confirmation option to proceed if intentional
+
+#### Time Format Issues
+```
+❌ Wrong time format! Use format HH:MM:SS
+```
+**Solution:** 
+- Use 24-hour format with seconds (e.g., 23:00:00, not 11:00:00 PM)
+- Include leading zeros (08:00:00, not 8:00:00)
+- Always include seconds (17:00:00, not 17:00)
 - Incorrect timezone conversion
 - Index pattern mismatch
 - Network connectivity issues
@@ -210,9 +309,3 @@ The tool automatically classifies alerts based on Wazuh rule levels:
 └── wazuh_shift_report_*           # Generated reports (auto-created)
 ```
 
-## 🔒 Security Considerations
-
-### Data Protection
-- **No Credential Storage** - Configure credentials directly in script
-- **Local Processing** - All analysis performed locally
-- **Report Security** - Reports contain aggregated data, not raw alert content
