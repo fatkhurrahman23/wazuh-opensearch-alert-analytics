@@ -19,29 +19,34 @@ OPENSEARCH_USE_HTTPS = True
 # URL OpenSearch
 OPENSEARCH_URL = f"{'https' if OPENSEARCH_USE_HTTPS else 'http'}://{OPENSEARCH_HOST}:{OPENSEARCH_PORT}"
 
-
 def get_user_input_time_range():
 
     print("\nANALYSIS TIME CONFIGURATION")
-    print("=" * 40)
+    print("=" * 50)
     
     today = datetime.now().date()
+    
+    # START DATE AND TIME
+    print(f"\n🕐 START DATE & TIME CONFIGURATION")
+    print("-" * 40)
+    
+    # Start date input
     while True:
-        date_input = input(f"Enter date (YYYY-MM-DD), default: [{today}]: ").strip()
-        if date_input == "":
-            target_date = today
+        start_date_input = input(f"Enter start date (YYYY-MM-DD), default: [{today}]: ").strip()
+        if start_date_input == "":
+            start_date = today
             break
         else:
             try:
-                target_date = datetime.strptime(date_input, "%Y-%m-%d").date()
+                start_date = datetime.strptime(start_date_input, "%Y-%m-%d").date()
                 break
             except ValueError:
                 print("❌ Wrong date format! Use format YYYY-MM-DD (example: 2025-08-24)")
     
-    # Start time
-    print(f"\nSTART TIME")
+    # Start time input
+    print(f"Start date set to: {start_date}")
     print("Enter start time (format: HH:MM:SS)")
-    print("Example: 08:00:00 for 8 AM")
+    print("Example: 23:00:00 for 11 PM")
     
     while True:
         start_time_input = input("Start time [08:00:00]: ").strip()
@@ -49,15 +54,36 @@ def get_user_input_time_range():
             start_time_input = "08:00:00"
         
         try:
+            # Validate time format
             start_time_obj = datetime.strptime(start_time_input, "%H:%M:%S").time()
             break
         except ValueError:
-            print("❌ Wrong time format! Use format HH:MM:SS (example: 08:00:00)")
+            print("❌ Wrong time format! Use format HH:MM:SS (example: 08:00:00 or 23:00:00)")
     
-    # End time
-    print(f"\nEND TIME")
+    # END DATE AND TIME
+    print(f"\n🕕 END DATE & TIME CONFIGURATION")
+    print("-" * 40)
+    
+    # Default end date (next day if start time is after 20:00, same day otherwise)
+    default_end_date = start_date + timedelta(days=1) if start_time_obj.hour >= 20 else start_date
+    
+    # End date input
+    while True:
+        end_date_input = input(f"Enter end date (YYYY-MM-DD), default: [{default_end_date}]: ").strip()
+        if end_date_input == "":
+            end_date = default_end_date
+            break
+        else:
+            try:
+                end_date = datetime.strptime(end_date_input, "%Y-%m-%d").date()
+                break
+            except ValueError:
+                print("❌ Wrong date format! Use format YYYY-MM-DD (example: 2025-08-24)")
+    
+    # End time input
+    print(f"End date set to: {end_date}")
     print("Enter end time (format: HH:MM:SS)")
-    print("Example: 17:00:00 for 5 PM")
+    print("Example: 05:00:00 for 5 AM")
     
     while True:
         end_time_input = input("End time [17:00:00]: ").strip()
@@ -65,23 +91,34 @@ def get_user_input_time_range():
             end_time_input = "17:00:00"
         
         try:
+            # Validate time format
             end_time_obj = datetime.strptime(end_time_input, "%H:%M:%S").time()
             break
         except ValueError:
-            print("❌ Wrong time format! Use format HH:MM:SS (example: 17:00:00)")
+            print("❌ Wrong time format! Use format HH:MM:SS (example: 17:00:00 or 05:00:00)")
     
-    # Time validation (ensure end > start)
-    start_datetime_wib = datetime.combine(target_date, start_time_obj)
-    end_datetime_wib = datetime.combine(target_date, end_time_obj)
+    # Create datetime objects for WIB timezone
+    start_datetime_wib = datetime.combine(start_date, start_time_obj)
+    end_datetime_wib = datetime.combine(end_date, end_time_obj)
     
+    # Validate that end time is after start time
     if end_datetime_wib <= start_datetime_wib:
-        print("⚠️ End time must be greater than start time!")
-        # If end time is smaller, assume next day
-        end_datetime_wib = datetime.combine(target_date + timedelta(days=1), end_time_obj)
-        print(f"✅ Using end time next day: {end_datetime_wib.strftime('%Y-%m-%d %H:%M:%S')} WIB")
+        print("⚠️ Warning: End time is not greater than start time!")
+        print(f"Start: {start_datetime_wib.strftime('%Y-%m-%d %H:%M:%S')} WIB")
+        print(f"End: {end_datetime_wib.strftime('%Y-%m-%d %H:%M:%S')} WIB")
+        print("This may result in no data or unexpected results.")
+        
+        while True:
+            continue_choice = input("Continue anyway? (y/n) [n]: ").strip().lower()
+            if continue_choice == "" or continue_choice == "n" or continue_choice == "no":
+                print("❌ Analysis cancelled. Please adjust your time range.")
+                return None, None, None, None
+            elif continue_choice == "y" or continue_choice == "yes":
+                break
+            else:
+                print("❌ Answer with 'y' or 'n'")
     
     # Convert to UTC (WIB = UTC+7)
-    # you can adjust the offset if needed
     start_datetime_utc = start_datetime_wib - timedelta(hours=7)
     end_datetime_utc = end_datetime_wib - timedelta(hours=7)
     
@@ -89,11 +126,17 @@ def get_user_input_time_range():
     start_iso = start_datetime_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
     end_iso = end_datetime_utc.strftime('%Y-%m-%dT%H:%M:%SZ')
     
+    # Calculate duration
+    duration = end_datetime_wib - start_datetime_wib
+    hours = duration.total_seconds() / 3600
+    
     # Show summary
-    print(f"\nCONFIGURATION SUMMARY:")
-    print(f"Date: {target_date}")
-    print(f"Time WIB (GMT+7): {start_time_input} - {end_time_input}")
-    print(f"Time UTC: {start_iso} - {end_iso}")
+    print(f"\n📋 CONFIGURATION SUMMARY:")
+    print("=" * 50)
+    print(f"Start: {start_datetime_wib.strftime('%Y-%m-%d %H:%M:%S')} WIB")
+    print(f"End:   {end_datetime_wib.strftime('%Y-%m-%d %H:%M:%S')} WIB")
+    print(f"Duration: {hours:.1f} hours")
+    print(f"UTC Range: {start_iso} to {end_iso}")
     
     # Confirmation
     while True:
@@ -102,7 +145,7 @@ def get_user_input_time_range():
             break
         elif confirm == "n" or confirm == "no":
             print("❌ Analysis cancelled")
-            return None, None
+            return None, None, None, None
         else:
             print("❌ Answer with 'y' or 'n'")
     
@@ -653,3 +696,5 @@ if __name__ == "__main__":
         print(f"\n❌ Unexpected error: {e}")
         import traceback
         traceback.print_exc()
+
+
